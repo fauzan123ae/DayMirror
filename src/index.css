@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Quicksand', sans-serif;
+  background-color: #FDFBF7;
+  color: #2C3E35;
+}
+
+.font-cute { font-family: 'Quicksand', sans-serif; }
+.font-comic-title { font-family: 'Fredoka', sans-serif; }
+
+.comic-border-thick { border: 4px solid #2C3E35; }
+.comic-border-thin  { border: 2px solid #2C3E35; }
+
+.comic-shadow-sm  { box-shadow: 3px 3px 0px 0px #2C3E35; }
+.comic-shadow-md  { box-shadow: 6px 6px 0px 0px #2C3E35; }
+.comic-shadow-lg  { box-shadow: 10px 10px 0px 0px #2C3E35; }
+
+.bouncy-hover { transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.bouncy-hover:hover  { transform: translateY(-5px) scale(1.02); box-shadow: 8px 8px 0px 0px #2C3E35; }
+.bouncy-hover:active { transform: translateY(2px) scale(0.98); box-shadow: 2px 2px 0px 0px #2C3E35; }
+
+.chat-bubble-ai::before {
+  content: ''; position: absolute; top: 14px; left: -10px;
+  width: 0; height: 0;
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  border-right: 10px solid #2C3E35;
+}
+.chat-bubble-ai::after {
+  content: ''; position: absolute; top: 14px; left: -7px;
+  width: 0; height: 0;
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  border-right: 10px solid #FFFDF9;
+}
+.chat-bubble-user::before {
+  content: ''; position: absolute; top: 14px; right: -10px;
+  width: 0; height: 0;
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  border-left: 10px solid #2C3E35;
+}
+.chat-bubble-user::after {
+  content: ''; position: absolute; top: 14px; right: -7px;
+  width: 0; height: 0;
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  border-left: 10px solid #F7D3C6;
+}
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(-3deg); }
+  50%       { transform: rotate(3deg); }
+}
+.animate-wobble-slow { animation: wobble 4s ease-in-out infinite; }
+
+.grid-scrapbook {
+  background-size: 20px 20px;
+  background-image:
+    linear-gradient(to right, rgba(44,62,53,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(44,62,53,0.05) 1px, transparent 1px);
+}
