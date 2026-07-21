@@ -28,7 +28,6 @@ export default function Reflect() {
     mood: 'happy', good_things: '', obstacles: '', tomorrow_goal: ''
   });
 
-  // Init chat greeting
   useEffect(() => {
     if (method === 'chat' && chatMessages.length === 0) {
       setMessages([{
@@ -43,28 +42,32 @@ export default function Reflect() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, chatLoading]);
 
-  // Helper: convert OpenAI-style messages to Gemini format and call API
-  // Helper: call DeepSeek (OpenAI-compatible format)
+  // Helper: call Claude API
   const callGemini = useCallback(async (systemPrompt, messages, maxTokens = 700, temperature = 0.8) => {
+    // Filter out system messages from the messages array (Claude uses separate system param)
+    const userMessages = messages.filter(m => m.role !== 'system');
+
     const res = await fetchWithRetry(GEMINI_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_KEY}`,
+        'x-api-key': GROQ_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        model: 'claude-sonnet-4-6',
         max_tokens: maxTokens,
-        temperature,
+        system: systemPrompt,
+        messages: userMessages,
       }),
     });
 
     const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('Empty response dari DeepSeek');
+    const text = data?.content?.[0]?.text?.trim();
+    if (!text) throw new Error('Empty response dari Claude');
     return text;
-  }, [GEMINI_URL, fetchWithRetry]);
+  }, [GEMINI_URL, GROQ_KEY, fetchWithRetry]);
 
   const sendChat = async (e) => {
     e.preventDefault();
@@ -90,16 +93,13 @@ Tugasmu: tuntun pengguna mengevaluasi harinya secara bertahap dalam urutan ini:
 
 Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum Memori" di atas. Jangan melompat topik. Respons maksimal 2-3 kalimat per giliran agar percakapan terasa seperti ngobrol nyata.`;
 
-    // Format multi-turn OpenAI-compatible untuk Groq
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...allMsgs
-        .filter(m => m.id !== 'sys-1')
-        .map(m => ({
-          role: m.sender === 'user' ? 'user' : 'assistant',
-          content: m.text,
-        })),
-    ];
+    // Format pesan untuk Claude (role: user/assistant saja, tanpa system)
+    const messages = allMsgs
+      .filter(m => m.id !== 'sys-1')
+      .map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
 
     try {
       const text = await callGemini(systemPrompt, messages, 700, 0.8);
@@ -283,7 +283,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       {/* CHAT MODE */}
       {method === 'chat' && (
         <div className="bg-[#FFFDF9] rounded-[32px] comic-border-thick comic-shadow-md overflow-hidden flex flex-col" style={{ minHeight: '520px' }}>
-          {/* Chat header */}
           <div className="bg-[#7CA190] border-b-4 border-[#2C3E35] p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#FFF6E0] comic-border-thin flex items-center justify-center text-2xl animate-wobble-slow">{aiCompanion.avatar}</div>
@@ -303,7 +302,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
             </button>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 p-5 overflow-y-auto space-y-5 bg-[#FDFBF7]">
             {chatMessages.map(msg => (
               <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -368,7 +366,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
           </div>
 
           <form onSubmit={submitForm} className="space-y-5 pt-2">
-            {/* Mood */}
             <div>
               <label className="block text-[10px] font-black text-[#2C3E35] uppercase tracking-wider mb-2">Warna Emosimu Hari Ini? 🌈</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

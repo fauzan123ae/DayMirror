@@ -3,9 +3,8 @@ import { supabase } from '../lib/supabase';
 
 const AppContext = createContext(null);
 
-const GROQ_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || "";
-
-const GEMINI_URL = 'https://api.deepseek.com/chat/completions';
+const GROQ_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
+const GEMINI_URL = 'https://api.anthropic.com/v1/messages';
 
 function getTodayStr() {
   return new Date().toISOString().split('T')[0];
@@ -25,7 +24,7 @@ const DEFAULT_STICKERS = [
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [authUser, setAuthUser] = useState(null); // Supabase auth user
+  const [authUser, setAuthUser] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [aiCompanion, setAiCompanion] = useState({ name: 'Mirror', avatar: '🥑' });
   const [weeklyReport, setWeeklyReport] = useState(null);
@@ -39,10 +38,8 @@ export function AppProvider({ children }) {
     setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
-  // Load semua data user dari Supabase setelah login
   const loadUserData = useCallback(async (supabaseUser) => {
     try {
-      // Load profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -62,7 +59,6 @@ export function AppProvider({ children }) {
         setScrapbookStickers(profile.stickers || DEFAULT_STICKERS);
       }
 
-      // Load reflections
       const { data: refs } = await supabase
         .from('reflections')
         .select('*')
@@ -70,7 +66,6 @@ export function AppProvider({ children }) {
         .order('date', { ascending: false });
       setReflections(refs || []);
 
-      // Load weekly report (yang terbaru, cek expired) - Tanpa .single()
       const { data: weeklyArr } = await supabase
         .from('weekly_reports')
         .select('*')
@@ -86,7 +81,6 @@ export function AppProvider({ children }) {
         setWeeklyReport(null);
       }
 
-      // Load daily goals hari ini - Tanpa .single()
       const { data: goalsArr } = await supabase
         .from('daily_goals')
         .select('*')
@@ -101,9 +95,7 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Listen ke perubahan auth session Supabase
   useEffect(() => {
-    // Cek session yang sudah ada
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setAuthUser(session.user);
@@ -113,7 +105,6 @@ export function AppProvider({ children }) {
       }
     });
 
-    // Subscribe ke perubahan auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setAuthUser(session.user);
@@ -132,7 +123,6 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe();
   }, [loadUserData]);
 
-  // Auto-save daily goals ke Supabase setiap ada perubahan
   useEffect(() => {
     if (!authUser) return;
     const save = async () => {
@@ -140,11 +130,10 @@ export function AppProvider({ children }) {
         .from('daily_goals')
         .upsert({ user_id: authUser.id, date: getTodayStr(), items: dailyGoals }, { onConflict: 'user_id,date' });
     };
-    const timer = setTimeout(save, 800); // debounce 800ms
+    const timer = setTimeout(save, 800);
     return () => clearTimeout(timer);
   }, [dailyGoals, authUser]);
 
-  // Auto-save ai companion ke profile
   useEffect(() => {
     if (!authUser) return;
     const save = async () => {
@@ -154,7 +143,6 @@ export function AppProvider({ children }) {
     return () => clearTimeout(timer);
   }, [aiCompanion, authUser]);
 
-  // Auto-save stickers ke profile
   useEffect(() => {
     if (!authUser) return;
     const save = async () => {

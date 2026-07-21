@@ -33,27 +33,25 @@ export default function Weekly() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_KEY}`,
+          'x-api-key': GROQ_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'claude-sonnet-4-6',
+          max_tokens: 800,
+          system: 'Kamu adalah AI Coach dan Psikolog dalam Bahasa Indonesia. Kembalikan HANYA JSON valid tanpa markdown tanpa penjelasan.',
           messages: [
-            {
-              role: 'system',
-              content: 'Kamu adalah AI Coach dan Psikolog dalam Bahasa Indonesia. Kembalikan HANYA JSON valid tanpa markdown tanpa penjelasan.',
-            },
             {
               role: 'user',
               content: `Analisis log jurnal harian berikut dan buat laporan mingguan.\n\nData:\n${JSON.stringify(summary)}\n\nNama AI: ${aiCompanion.name}\nFokus: ${GOAL_OPTIONS.find(o => o.id === user?.goal)?.label || 'Self Improvement'}\n\nKembalikan HANYA JSON format ini:\n{"achievements":["...","..."],"challenges":["...","..."],"trends":"...","recommendations":["...","...","..."]}`,
             },
           ],
-          max_tokens: 800,
-          temperature: 0.6,
         }),
       });
 
       const data = await res.json();
-      const rawText = data?.choices?.[0]?.message?.content?.trim() || '{}';
+      const rawText = data?.content?.[0]?.text?.trim() || '{}';
       const cleaned = rawText.replace(/```json\n?|```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
@@ -64,10 +62,10 @@ export default function Weekly() {
         ...parsed,
       });
       triggerToast('Laporan mingguan komikmu sudah ditenun! 🥑🎨', 'success');
-      // Simpan ke Supabase
-await supabase
-  .from('weekly_reports')
-  .upsert({ user_id: authUser.id, ...parsed, date_generated: new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) });
+
+      await supabase
+        .from('weekly_reports')
+        .upsert({ user_id: authUser.id, ...parsed, date_generated: new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) });
 
     } catch (err) {
       console.error('[Daymirror] Weekly error:', err);
@@ -132,7 +130,6 @@ await supabase
 
         {weeklyReport ? (
           <div className="space-y-6 pt-2">
-            {/* Ticket metadata */}
             <div className="p-3 bg-white rounded-xl text-xs text-[#7CA190] font-black flex justify-between items-center border-2 border-dashed border-[#2C3E35]">
               <span>
                 Diterbitkan: <strong className="text-[#2C3E35]">{weeklyReport.dateGenerated}</strong>
@@ -146,7 +143,6 @@ await supabase
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Achievements */}
               <div className="bg-[#E2F0D9] p-5 rounded-3xl comic-border-thick comic-shadow-md space-y-3 relative transform -rotate-1">
                 <span className="absolute -top-3.5 left-4 text-3xl">🏆</span>
                 <h4 className="font-comic-title font-black text-sm text-[#3B6628] pt-2">Puncak Kemenanganmu Pekan Ini!</h4>
@@ -157,7 +153,6 @@ await supabase
                 </ul>
               </div>
 
-              {/* Challenges */}
               <div className="bg-[#FCE4D6] p-5 rounded-3xl comic-border-thick comic-shadow-md space-y-3 relative transform rotate-1">
                 <span className="absolute -top-3.5 right-4 text-3xl">🐙</span>
                 <h4 className="font-comic-title font-black text-sm text-[#843C0C] pt-2">Musuh Malas yang Harus Dikalahkan:</h4>
@@ -169,7 +164,6 @@ await supabase
               </div>
             </div>
 
-            {/* Trends */}
             <div className="bg-white p-5 rounded-3xl comic-border-thick space-y-3 comic-shadow-sm relative">
               <span className="absolute -top-2.5 right-12 text-2xl">📈</span>
               <h4 className="font-comic-title font-black text-sm text-[#2C3E35]">Alur Nafas & Energi Mingguan</h4>
@@ -178,7 +172,6 @@ await supabase
               </p>
             </div>
 
-            {/* Recommendations */}
             <div className="bg-[#7CA190] border-4 border-[#2C3E35] p-6 rounded-[32px] text-white space-y-4 comic-shadow-md">
               <h4 className="font-comic-title font-black text-sm flex items-center gap-2 text-[#FFF6E0]">
                 🧭 Jurus Rahasia Petualangan Berikutnya (Saran {aiCompanion.name})
