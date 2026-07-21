@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase';
 export default function Reflect() {
   const {
     user, authUser, aiCompanion, reflections, setReflections,
-    setDailyGoals, triggerToast, GEMINI_URL, fetchWithRetry,
+    setDailyGoals, triggerToast, GEMINI_URL, GROQ_KEY, fetchWithRetry,
     calculateStreak, setUser,
   } = useApp();
   const navigate = useNavigate();
@@ -44,33 +44,25 @@ export default function Reflect() {
   }, [chatMessages, chatLoading]);
 
   // Helper: convert OpenAI-style messages to Gemini format and call API
+  // Helper: call DeepSeek (OpenAI-compatible format)
   const callGemini = useCallback(async (systemPrompt, messages, maxTokens = 700, temperature = 0.8) => {
-    // Build Gemini contents array: system goes as first user turn (Gemini 2.0 Flash supports systemInstruction)
-    const contents = messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      }));
-
-    const body = {
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents,
-      generationConfig: {
-        maxOutputTokens: maxTokens,
-        temperature,
-      },
-    };
-
     const res = await fetchWithRetry(GEMINI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        max_tokens: maxTokens,
+        temperature,
+      }),
     });
 
     const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!text) throw new Error('Empty response dari Gemini');
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('Empty response dari DeepSeek');
     return text;
   }, [GEMINI_URL, fetchWithRetry]);
 

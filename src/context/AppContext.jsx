@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 
 const AppContext = createContext(null);
 
-const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || ''; // kept for backward compat
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+const GROQ_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || "";
+
+const GEMINI_URL = 'https://api.deepseek.com/chat/completions';
 
 function getTodayStr() {
   return new Date().toISOString().split('T')[0];
