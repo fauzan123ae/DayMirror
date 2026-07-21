@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Target, Flame, Trash2, AlertTriangle, Save, LogOut } from 'lucide-react';
+import { User, Target, BookOpen, Trash2, AlertTriangle, Save, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { GOAL_OPTIONS } from '../data/constants';
 import { supabase } from '../lib/supabase';
 
 export default function Profile() {
-  const { user, setUser, logout, triggerToast } = useApp();
+  const { user, setUser, reflections, logout, triggerToast } = useApp();
   const navigate = useNavigate();
 
   const [newName, setNewName]         = useState(user?.name || '');
@@ -42,14 +42,12 @@ export default function Profile() {
     if (!deletePassword) { triggerToast('Masukkan kata sandi untuk konfirmasi! 🗝️', 'error'); return; }
 
     try {
-      // Re-authenticate untuk konfirmasi
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: deletePassword,
       });
       if (authError) { triggerToast('Kata sandi salah! 🗝️', 'error'); return; }
 
-      // Hapus profile — cascade di SQL akan hapus reflections, goals, weekly juga
       await supabase.from('profiles').delete().eq('id', user.id);
 
       triggerToast('Akun berhasil dihapus. Sampai jumpa! 🐾', 'info');
@@ -85,9 +83,9 @@ export default function Profile() {
 
           <div className="pt-4 border-t-2 border-dashed border-[#2C3E35] grid grid-cols-2 gap-4">
             <div className="bg-[#FFF6E0] p-3 rounded-2xl comic-border-thin comic-shadow-sm">
-              <Flame className="w-6 h-6 text-[#EBB39C] mx-auto mb-1 animate-pulse" />
-              <span className="block text-[10px] font-black text-[#7CA190]">STREAK</span>
-              <strong className="text-sm font-black text-[#2C3E35]">{user.streak || 0} Hari</strong>
+              <BookOpen className="w-6 h-6 text-[#EBB39C] mx-auto mb-1" />
+              <span className="block text-[10px] font-black text-[#7CA190]">TOTAL JURNAL</span>
+              <strong className="text-sm font-black text-[#2C3E35]">{reflections.length} Entri</strong>
             </div>
             <div className="bg-[#E2F0D9] p-3 rounded-2xl comic-border-thin comic-shadow-sm">
               <Target className="w-6 h-6 text-[#7CA190] mx-auto mb-1" />
@@ -155,7 +153,7 @@ export default function Profile() {
           <h4 className="font-comic-title font-black text-sm uppercase tracking-wider">Area Bahaya (Danger Zone)</h4>
         </div>
         <p className="text-xs font-bold text-[#7CA190] mb-4">
-          Tindakan ini permanen. Seluruh jurnal, streak, stiker, dan laporan akan terhapus selamanya.
+          Tindakan ini permanen. Seluruh jurnal, stiker, dan laporan akan terhapus selamanya.
         </p>
 
         {confirmDelete ? (

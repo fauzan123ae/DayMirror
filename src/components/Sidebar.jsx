@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Calendar, TrendingUp, Palette, Flame, User } from 'lucide-react';
+import { BookOpen, Calendar, TrendingUp, Palette, LayoutDashboard, User } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import CompanionModal from './CompanionModal';
 
 const NAV_ITEMS = [
-  { path: '/dashboard', icon: Flame,      label: 'Dashboard'        },
-  { path: '/reflect',   icon: BookOpen,   label: 'Cermin'           },
-  { path: '/journal',   icon: Calendar,   label: 'Jurnal'           },
-  { path: '/weekly',    icon: TrendingUp, label: 'Mingguan'         },
-  { path: '/profile',   icon: User,       label: 'Profil'           },
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'        },
+  { path: '/reflect',   icon: BookOpen,        label: 'Cermin'           },
+  { path: '/journal',   icon: Calendar,        label: 'Jurnal'           },
+  { path: '/weekly',    icon: TrendingUp,      label: 'Mingguan'         },
+  { path: '/profile',   icon: User,            label: 'Profil'           },
 ];
 
 export default function Sidebar() {
-  const { user, aiCompanion } = useApp();
+  const { user, aiCompanion, reflections } = useApp();
   const navigate  = useNavigate();
   const location  = useLocation();
   const [showModal, setShowModal] = useState(false);
@@ -47,9 +47,9 @@ export default function Sidebar() {
 
           <div className="pt-4 mt-4 border-t-4 border-dashed border-[#2C3E35]">
             <div className="p-4 bg-[#FFF6E0] rounded-2xl comic-border-thick comic-shadow-sm text-center">
-              <div className="inline-block text-4xl animate-bounce mb-1">🔥</div>
-              <h5 className="font-comic-title font-black text-lg text-[#2C3E35]">{user.streak || 0} Hari!</h5>
-              <p className="text-[10px] text-[#7CA190] font-black uppercase tracking-wider mt-1">Jangan padam! 🥑</p>
+              <div className="inline-block text-4xl mb-1">📓</div>
+              <h5 className="font-comic-title font-black text-lg text-[#2C3E35]">{reflections.length} Jurnal</h5>
+              <p className="text-[10px] text-[#7CA190] font-black uppercase tracking-wider mt-1">Total catatanmu 🌸</p>
             </div>
           </div>
 
