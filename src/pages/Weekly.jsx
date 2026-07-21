@@ -2,10 +2,11 @@ import React from 'react';
 import { TrendingUp, RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { GOAL_OPTIONS } from '../data/constants';
+import { supabase } from '../lib/supabase';
 
 export default function Weekly() {
   const {
-    user, aiCompanion, reflections,
+    user, authUser, aiCompanion, reflections,
     weeklyReport, setWeeklyReport,
     triggerToast, GEMINI_URL, GROQ_KEY, fetchWithRetry
   } = useApp();
@@ -63,6 +64,10 @@ export default function Weekly() {
         ...parsed,
       });
       triggerToast('Laporan mingguan komikmu sudah ditenun! 🥑🎨', 'success');
+      // Simpan ke Supabase
+await supabase
+  .from('weekly_reports')
+  .upsert({ user_id: authUser.id, ...parsed, date_generated: new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) });
 
     } catch (err) {
       console.error('[Daymirror] Weekly error:', err);

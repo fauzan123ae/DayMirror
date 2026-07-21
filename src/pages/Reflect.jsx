@@ -6,10 +6,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { GOAL_OPTIONS, MOOD_OPTIONS } from '../data/constants';
+import { supabase } from '../lib/supabase';
 
 export default function Reflect() {
   const {
-    user, aiCompanion, reflections, setReflections,
+    user, authUser, aiCompanion, reflections, setReflections,
     setDailyGoals, triggerToast, GEMINI_URL, GROQ_KEY, fetchWithRetry,
     calculateStreak, setUser,
   } = useApp();
@@ -183,10 +184,12 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
     }
   };
 
-  const saveReflection = (data) => {
+  const saveReflection = async (data) => {
     const today = new Date().toISOString().split('T')[0];
+
     const entry = {
-      id: Date.now(), date: today,
+      user_id: authUser.id,
+      date: today,
       mood: data.mood || 'neutral',
       good_things: data.good_things,
       obstacles: data.obstacles,
@@ -195,10 +198,23 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       ai_advice: data.ai_advice,
     };
 
+    const { data: saved, error } = await supabase
+      .from('reflections')
+      .upsert(entry, { onConflict: 'user_id,date' })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Daymirror] saveReflection error:', error);
+      triggerToast('Gagal menyimpan jurnal 😢', 'error');
+      return;
+    }
+
     setReflections(prev => {
-      const updated = [entry, ...prev.filter(r => r.date !== today)];
+      const updated = [saved, ...prev.filter(r => r.date !== today)];
       const newStreak = calculateStreak(updated);
       setUser(u => u ? { ...u, streak: newStreak } : u);
+      supabase.from('profiles').update({ streak: newStreak }).eq('id', authUser.id);
       return updated;
     });
 
@@ -219,12 +235,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       triggerToast('Kamu sudah bercermin hari ini! Lihat di Buku Jurnal ya. ✨', 'info'); return;
     }
     setAiLoading(true);
-
-    const systemPrompt = `Anda adalah "${aiCompanion.name}" ${aiCompanion.avatar}, asisten refleksi kartun hangat dalam Bahasa Indonesia. Kembalikan JSON: {"summary":"...","advice":"..."}`;
-    const userPrompt = `Mood: ${formData.mood}\nHal baik: "${good_things}"\nHambatan: "${obstacles}"\nTarget besok: "${tomorrow_goal}"`;
-
-    let summary = '';
-    let advice = '';
 
     try {
       const res = await fetchWithRetry(GEMINI_URL, {
@@ -254,18 +264,24 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       const rawText = data?.choices?.[0]?.message?.content?.trim() || '{}';
       const cleaned = rawText.replace(/```json\n?|```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
-      summary = parsed.summary || '';
-      advice = parsed.advice || '';
+
+      saveReflection({
+        ...formData,
+        ai_summary: parsed.summary || `Meskipun ada rintangan "${obstacles || 'hari ini'}", perjuanganmu sangat hebat! ⭐`,
+        ai_advice: parsed.advice || `Biar jurus esok "${tomorrow_goal}" sukses, siapkan istirahat cukup malam ini!`,
+      });
 
     } catch (err) {
       console.error('[Daymirror] Form submit error:', err);
-      summary = `Meskipun ada rintangan "${obstacles || 'hari ini'}", perjuanganmu sangat hebat! ⭐`;
-      advice = `Biar jurus esok "${tomorrow_goal}" sukses, siapkan istirahat cukup malam ini!`;
+      saveReflection({
+        ...formData,
+        ai_summary: `Meskipun ada rintangan "${obstacles || 'hari ini'}", perjuanganmu sangat hebat! ⭐`,
+        ai_advice: `Biar jurus esok "${tomorrow_goal}" sukses, siapkan istirahat cukup malam ini!`,
+      });
+    } finally {
+      setAiLoading(false);
+      setFormData({ mood: 'happy', good_things: '', obstacles: '', tomorrow_goal: '' });
     }
-
-    setAiLoading(false);
-    saveReflection({ ...formData, ai_summary: summary, ai_advice: advice });
-    setFormData({ mood: 'happy', good_things: '', obstacles: '', tomorrow_goal: '' });
   };
 
   return (

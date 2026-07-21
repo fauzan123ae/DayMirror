@@ -1,32 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { INITIAL_REFLECTIONS } from '../data/constants';
+import { supabase } from '../lib/supabase';
 
 const AppContext = createContext(null);
 
-// Taruh di luar komponen agar tidak re-define setiap render
 const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 const GEMINI_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 function getTodayStr() {
   return new Date().toISOString().split('T')[0];
-}
-
-function loadGoalsForUser(username) {
-  try {
-    const saved = localStorage.getItem(`dm_goals_${username}`);
-    if (!saved) return null;
-    const parsed = JSON.parse(saved);
-    // Reset done-status jika hari sudah berbeda
-    if (parsed.date !== getTodayStr()) {
-      return {
-        date: getTodayStr(),
-        items: parsed.items.map(g => ({ ...g, done: false })),
-      };
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
 }
 
 const DEFAULT_GOALS = [
@@ -35,197 +16,198 @@ const DEFAULT_GOALS = [
   { id: 3, text: 'Membaca atau dengerin podcast ilmu baru 🎧', done: false },
 ];
 
+const DEFAULT_STICKERS = [
+  { id: 1, emoji: '🎉', x: 80, y: 15, rotate: -15, label: 'Super!' },
+  { id: 2, emoji: '✨', x: 20, y: 70, rotate: 10, label: 'Ajaib' },
+  { id: 3, emoji: '🌸', x: 92, y: 78, rotate: -5, label: 'Damai' },
+];
+
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try { const s = localStorage.getItem('dm_user'); return s ? JSON.parse(s) : null; } catch { return null; }
-  });
-
-  const [reflections, setReflections] = useState(() => {
-    try {
-      const u = localStorage.getItem('dm_user');
-      if (u) {
-        const parsedUser = JSON.parse(u);
-        const s = localStorage.getItem(`dm_reflections_${parsedUser.name}`);
-        return s ? JSON.parse(s) : [];
-      }
-      return [];
-    } catch { return []; }
-  });
-
-  const [aiCompanion, setAiCompanion] = useState(() => {
-    try {
-      const u = localStorage.getItem('dm_user');
-      if (u) {
-        const parsedUser = JSON.parse(u);
-        const s = localStorage.getItem(`dm_companion_${parsedUser.name}`);
-        return s ? JSON.parse(s) : { name: 'Mirror', avatar: '🥑' };
-      }
-      return { name: 'Mirror', avatar: '🥑' };
-    } catch { return { name: 'Mirror', avatar: '🥑' }; }
-  });
-
-  const [weeklyReport, setWeeklyReport] = useState(() => {
-    try {
-      const u = localStorage.getItem('dm_user');
-      if (u) {
-        const parsedUser = JSON.parse(u);
-        const s = localStorage.getItem(`dm_weekly_${parsedUser.name}`);
-        if (!s) return null;
-        const parsed = JSON.parse(s);
-        // Expired setelah 7 hari
-        if (parsed._savedAt) {
-          const diffDays = (Date.now() - parsed._savedAt) / (1000 * 60 * 60 * 24);
-          if (diffDays > 7) return null;
-        }
-        return parsed;
-      }
-      return null;
-    } catch { return null; }
-  });
-
-  const [scrapbookStickers, setScrapbookStickers] = useState(() => {
-    try {
-      const u = localStorage.getItem('dm_user');
-      if (u) {
-        const parsedUser = JSON.parse(u);
-        const s = localStorage.getItem(`dm_stickers_${parsedUser.name}`);
-        return s ? JSON.parse(s) : [
-          { id: 1, emoji: '🎉', x: 80, y: 15, rotate: -15, label: 'Super!' },
-          { id: 2, emoji: '✨', x: 20, y: 70, rotate: 10, label: 'Ajaib' },
-          { id: 3, emoji: '🌸', x: 92, y: 78, rotate: -5, label: 'Damai' },
-        ];
-      }
-      return [
-        { id: 1, emoji: '🎉', x: 80, y: 15, rotate: -15, label: 'Super!' },
-        { id: 2, emoji: '✨', x: 20, y: 70, rotate: 10, label: 'Ajaib' },
-        { id: 3, emoji: '🌸', x: 92, y: 78, rotate: -5, label: 'Damai' },
-      ];
-    } catch { return []; }
-  });
-
-  const [dailyGoals, setDailyGoals] = useState(() => {
-    try {
-      const u = localStorage.getItem('dm_user');
-      if (u) {
-        const parsedUser = JSON.parse(u);
-        const saved = loadGoalsForUser(parsedUser.name);
-        return saved ? saved.items : DEFAULT_GOALS;
-      }
-      return DEFAULT_GOALS;
-    } catch {
-      return DEFAULT_GOALS;
-    }
-  });
-
+  const [user, setUser] = useState(null);
+  const [authUser, setAuthUser] = useState(null); // Supabase auth user
+  const [reflections, setReflections] = useState([]);
+  const [aiCompanion, setAiCompanion] = useState({ name: 'Mirror', avatar: '🥑' });
+  const [weeklyReport, setWeeklyReport] = useState(null);
+  const [scrapbookStickers, setScrapbookStickers] = useState(DEFAULT_STICKERS);
+  const [dailyGoals, setDailyGoals] = useState(DEFAULT_GOALS);
   const [toastMessage, setToastMessage] = useState(null);
-
-  // Persist
-  useEffect(() => {
-    if (!user) return;
-    try { localStorage.setItem(`dm_reflections_${user.name}`, JSON.stringify(reflections)); } catch {}
-  }, [reflections, user]);
-
-  useEffect(() => {
-    try {
-      if (user) localStorage.setItem('dm_user', JSON.stringify(user));
-      else localStorage.removeItem('dm_user');
-    } catch {}
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    try { localStorage.setItem(`dm_companion_${user.name}`, JSON.stringify(aiCompanion)); } catch {}
-  }, [aiCompanion, user]);
-
-  useEffect(() => {
-    if (!user || !weeklyReport) return;
-    try {
-      localStorage.setItem(`dm_weekly_${user.name}`, JSON.stringify({ ...weeklyReport, _savedAt: Date.now() }));
-    } catch {}
-  }, [weeklyReport, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    try { localStorage.setItem(`dm_stickers_${user.name}`, JSON.stringify(scrapbookStickers)); } catch {}
-  }, [scrapbookStickers, user]);
-
-  // Persist dailyGoals dengan tanggal
-  useEffect(() => {
-    if (!user) return;
-    try {
-      localStorage.setItem(`dm_goals_${user.name}`, JSON.stringify({ date: getTodayStr(), items: dailyGoals }));
-    } catch {}
-  }, [dailyGoals, user]);
+  const [loading, setLoading] = useState(true);
 
   const triggerToast = useCallback((text, type = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
-  const login = useCallback((userData) => {
-    setUser(userData);
-    localStorage.setItem('dm_user', JSON.stringify(userData));
+  // Load semua data user dari Supabase setelah login
+  const loadUserData = useCallback(async (supabaseUser) => {
     try {
-      const sRef = localStorage.getItem(`dm_reflections_${userData.name}`);
-      setReflections(sRef ? JSON.parse(sRef) : []);
-      
-      const sComp = localStorage.getItem(`dm_companion_${userData.name}`);
-      setAiCompanion(sComp ? JSON.parse(sComp) : { name: 'Mirror', avatar: '🥑' });
+      // Load profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
 
-      const sWeekly = localStorage.getItem(`dm_weekly_${userData.name}`);
-      if (sWeekly) {
-        const parsed = JSON.parse(sWeekly);
-        if (parsed._savedAt && (Date.now() - parsed._savedAt) / (1000 * 60 * 60 * 24) > 7) {
-          setWeeklyReport(null);
-        } else {
-          setWeeklyReport(parsed);
-        }
+      if (profile) {
+        setUser({
+          id: supabaseUser.id,
+          name: profile.name,
+          email: supabaseUser.email,
+          goal: profile.goal,
+          joinedAt: profile.joined_at,
+          streak: profile.streak || 0,
+        });
+        setAiCompanion(profile.ai_companion || { name: 'Mirror', avatar: '🥑' });
+        setScrapbookStickers(profile.stickers || DEFAULT_STICKERS);
+      }
+
+      // Load reflections
+      const { data: refs } = await supabase
+        .from('reflections')
+        .select('*')
+        .eq('user_id', supabaseUser.id)
+        .order('date', { ascending: false });
+      setReflections(refs || []);
+
+      // Load weekly report (yang terbaru, cek expired) - Tanpa .single()
+      const { data: weeklyArr } = await supabase
+        .from('weekly_reports')
+        .select('*')
+        .eq('user_id', supabaseUser.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const weekly = weeklyArr?.[0] || null;
+      if (weekly) {
+        const diffDays = (Date.now() - new Date(weekly.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        setWeeklyReport(diffDays > 7 ? null : weekly);
       } else {
         setWeeklyReport(null);
       }
 
-      const sStickers = localStorage.getItem(`dm_stickers_${userData.name}`);
-      setScrapbookStickers(sStickers ? JSON.parse(sStickers) : [
-        { id: 1, emoji: '🎉', x: 80, y: 15, rotate: -15, label: 'Super!' },
-        { id: 2, emoji: '✨', x: 20, y: 70, rotate: 10, label: 'Ajaib' },
-        { id: 3, emoji: '🌸', x: 92, y: 78, rotate: -5, label: 'Damai' },
-      ]);
+      // Load daily goals hari ini - Tanpa .single()
+      const { data: goalsArr } = await supabase
+        .from('daily_goals')
+        .select('*')
+        .eq('user_id', supabaseUser.id)
+        .eq('date', getTodayStr())
+        .limit(1);
 
-      const sGoals = loadGoalsForUser(userData.name);
-      setDailyGoals(sGoals ? sGoals.items : DEFAULT_GOALS);
-    } catch {}
+      setDailyGoals(goalsArr?.[0]?.items || DEFAULT_GOALS);
+
+    } catch (err) {
+      console.error('[Daymirror] loadUserData error:', err);
+    }
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setReflections([]);
-    setWeeklyReport(null);
-    setDailyGoals(DEFAULT_GOALS);
-    setScrapbookStickers([
-      { id: 1, emoji: '🎉', x: 80, y: 15, rotate: -15, label: 'Super!' },
-      { id: 2, emoji: '✨', x: 20, y: 70, rotate: 10, label: 'Ajaib' },
-      { id: 3, emoji: '🌸', x: 92, y: 78, rotate: -5, label: 'Damai' },
-    ]);
-    setAiCompanion({ name: 'Mirror', avatar: '🥑' });
+  // Listen ke perubahan auth session Supabase
+  useEffect(() => {
+    // Cek session yang sudah ada
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setAuthUser(session.user);
+        loadUserData(session.user).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Subscribe ke perubahan auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setAuthUser(session.user);
+        loadUserData(session.user);
+      } else {
+        setAuthUser(null);
+        setUser(null);
+        setReflections([]);
+        setWeeklyReport(null);
+        setDailyGoals(DEFAULT_GOALS);
+        setScrapbookStickers(DEFAULT_STICKERS);
+        setAiCompanion({ name: 'Mirror', avatar: '🥑' });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadUserData]);
+
+  // Auto-save daily goals ke Supabase setiap ada perubahan
+  useEffect(() => {
+    if (!authUser) return;
+    const save = async () => {
+      await supabase
+        .from('daily_goals')
+        .upsert({ user_id: authUser.id, date: getTodayStr(), items: dailyGoals }, { onConflict: 'user_id,date' });
+    };
+    const timer = setTimeout(save, 800); // debounce 800ms
+    return () => clearTimeout(timer);
+  }, [dailyGoals, authUser]);
+
+  // Auto-save ai companion ke profile
+  useEffect(() => {
+    if (!authUser) return;
+    const save = async () => {
+      await supabase.from('profiles').update({ ai_companion: aiCompanion }).eq('id', authUser.id);
+    };
+    const timer = setTimeout(save, 800);
+    return () => clearTimeout(timer);
+  }, [aiCompanion, authUser]);
+
+  // Auto-save stickers ke profile
+  useEffect(() => {
+    if (!authUser) return;
+    const save = async () => {
+      await supabase.from('profiles').update({ stickers: scrapbookStickers }).eq('id', authUser.id);
+    };
+    const timer = setTimeout(save, 800);
+    return () => clearTimeout(timer);
+  }, [scrapbookStickers, authUser]);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     triggerToast('Dadaahh! Jaga diri baik-baik ya! 🧸', 'info');
   }, [triggerToast]);
 
-  /**
-   * fetchWithRetry yang diperbaiki:
-   * - Retry untuk semua error (network + 429 + 5xx), bukan hanya 429
-   * - Timeout 15 detik per request agar tidak hang selamanya
-   * - Exponential backoff dengan jitter
-   */
+  const calculateStreak = useCallback((reflectionList) => {
+    if (!reflectionList || reflectionList.length === 0) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dates = [...new Set(reflectionList.map(r => r.date))]
+      .map(d => { const dt = new Date(d); dt.setHours(0, 0, 0, 0); return dt; })
+      .sort((a, b) => b - a);
+    let streak = 0;
+    let checkDate = new Date(today);
+    for (const date of dates) {
+      const diffDays = Math.round((checkDate - date) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0 || diffDays === 1) {
+        streak++;
+        checkDate = new Date(date);
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else break;
+    }
+    return streak;
+  }, []);
+
+  const deleteReflection = useCallback(async (id) => {
+    const { error } = await supabase.from('reflections').delete().eq('id', id).eq('user_id', authUser.id);
+    if (error) { triggerToast('Gagal hapus jurnal 😢', 'error'); return; }
+    setReflections(prev => {
+      const updated = prev.filter(r => r.id !== id);
+      const newStreak = calculateStreak(updated);
+      setUser(u => u ? { ...u, streak: newStreak } : u);
+      supabase.from('profiles').update({ streak: newStreak }).eq('id', authUser.id);
+      return updated;
+    });
+    triggerToast('Lembar memori dihapus! 🗑️', 'info');
+  }, [authUser, calculateStreak, triggerToast]);
+
   const fetchWithRetry = useCallback(async (url, options, retries = 3, delay = 1200) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
-
     try {
       const res = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(timeoutId);
-
       if (!res.ok) {
-        // Retry untuk 429 (rate limit) dan 5xx (server error)
         if ((res.status === 429 || res.status >= 500) && retries > 0) {
           const jitter = Math.random() * 500;
           await new Promise(r => setTimeout(r, delay + jitter));
@@ -237,7 +219,6 @@ export function AppProvider({ children }) {
       return res;
     } catch (err) {
       clearTimeout(timeoutId);
-      // Retry untuk error jaringan (AbortError dari timeout, NetworkError, dsb)
       if (retries > 0 && err.name !== 'AbortError') {
         const jitter = Math.random() * 500;
         await new Promise(r => setTimeout(r, delay + jitter));
@@ -247,47 +228,11 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Hitung streak dari daftar refleksi
-  const calculateStreak = (reflectionList) => {
-    if (!reflectionList || reflectionList.length === 0) return 0;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const dates = [...new Set(reflectionList.map(r => r.date))]
-      .map(d => { const dt = new Date(d); dt.setHours(0,0,0,0); return dt; })
-      .sort((a, b) => b - a);
-
-    let streak = 0;
-    let checkDate = new Date(today);
-
-    for (const date of dates) {
-      const diffDays = Math.round((checkDate - date) / (1000 * 60 * 60 * 24));
-      if (diffDays === 0 || diffDays === 1) {
-        streak++;
-        checkDate = new Date(date);
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return streak;
-  };
-
-  // Hapus satu entri jurnal dan recalculate streak
-  const deleteReflection = (id) => {
-    setReflections(prev => {
-      const updated = prev.filter(r => r.id !== id);
-      const newStreak = calculateStreak(updated);
-      setUser(u => u ? { ...u, streak: newStreak } : u);
-      return updated;
-    });
-    triggerToast('Lembar memori dihapus! 🗑️', 'info');
-  };
-
   return (
     <AppContext.Provider value={{
       user, setUser,
+      authUser,
+      loading,
       reflections, setReflections,
       aiCompanion, setAiCompanion,
       weeklyReport, setWeeklyReport,
@@ -295,7 +240,6 @@ export function AppProvider({ children }) {
       dailyGoals, setDailyGoals,
       toastMessage,
       triggerToast,
-      login,
       logout,
       deleteReflection,
       calculateStreak,

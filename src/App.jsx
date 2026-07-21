@@ -18,15 +18,27 @@ function PrivateRoute({ children }) {
 }
 
 function AppShell() {
-  const { user } = useApp();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { user, loading } = useApp();
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
   useEffect(() => {
     if (user && location.pathname === '/') {
       navigate('/dashboard', { replace: true });
     }
   }, [user, location.pathname, navigate]);
+
+  // Loading screen saat cek session Supabase
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="text-5xl animate-bounce">🥑</div>
+          <p className="font-black text-[#7CA190] text-sm">Memuat DayMirror...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2C3E35] font-cute flex flex-col selection:bg-[#F7D3C6] selection:text-[#50281F]">
