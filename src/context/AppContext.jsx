@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase';
 
 const AppContext = createContext(null);
 
-const GROQ_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
-const GEMINI_URL = 'https://api.anthropic.com/v1/messages';
+const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
+const GEMINI_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 function getTodayStr() {
   return new Date().toISOString().split('T')[0];

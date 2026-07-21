@@ -33,25 +33,27 @@ export default function Weekly() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': GROQ_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
+          'Authorization': `Bearer ${GROQ_KEY}`,
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 800,
-          system: 'Kamu adalah AI Coach dan Psikolog dalam Bahasa Indonesia. Kembalikan HANYA JSON valid tanpa markdown tanpa penjelasan.',
+          model: 'llama-3.3-70b-versatile',
           messages: [
+            {
+              role: 'system',
+              content: 'Kamu adalah AI Coach dan Psikolog dalam Bahasa Indonesia. Kembalikan HANYA JSON valid tanpa markdown tanpa penjelasan.',
+            },
             {
               role: 'user',
               content: `Analisis log jurnal harian berikut dan buat laporan mingguan.\n\nData:\n${JSON.stringify(summary)}\n\nNama AI: ${aiCompanion.name}\nFokus: ${GOAL_OPTIONS.find(o => o.id === user?.goal)?.label || 'Self Improvement'}\n\nKembalikan HANYA JSON format ini:\n{"achievements":["...","..."],"challenges":["...","..."],"trends":"...","recommendations":["...","...","..."]}`,
             },
           ],
+          max_tokens: 800,
+          temperature: 0.6,
         }),
       });
 
       const data = await res.json();
-      const rawText = data?.content?.[0]?.text?.trim() || '{}';
+      const rawText = data?.choices?.[0]?.message?.content?.trim() || '{}';
       const cleaned = rawText.replace(/```json\n?|```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
@@ -133,11 +135,6 @@ export default function Weekly() {
             <div className="p-3 bg-white rounded-xl text-xs text-[#7CA190] font-black flex justify-between items-center border-2 border-dashed border-[#2C3E35]">
               <span>
                 Diterbitkan: <strong className="text-[#2C3E35]">{weeklyReport.dateGenerated}</strong>
-                {weeklyReport._savedAt && (
-                  <span className="ml-2 text-[10px] text-[#7CA190]">
-                    · Expires dalam {Math.max(0, 7 - Math.floor((Date.now() - weeklyReport._savedAt) / (1000 * 60 * 60 * 24)))} hari
-                  </span>
-                )}
               </span>
               <span className="text-[#3B6628] font-black bg-[#E2F0D9] px-2 py-0.5 rounded-md border border-[#A8D08D]">Ajaib</span>
             </div>

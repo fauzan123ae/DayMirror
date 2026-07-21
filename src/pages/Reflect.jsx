@@ -42,30 +42,24 @@ export default function Reflect() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, chatLoading]);
 
-  // Helper: call Claude API
   const callGemini = useCallback(async (systemPrompt, messages, maxTokens = 700, temperature = 0.8) => {
-    // Filter out system messages from the messages array (Claude uses separate system param)
-    const userMessages = messages.filter(m => m.role !== 'system');
-
     const res = await fetchWithRetry(GEMINI_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': GROQ_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
+        'Authorization': `Bearer ${GROQ_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
         max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: userMessages,
+        temperature,
       }),
     });
 
     const data = await res.json();
-    const text = data?.content?.[0]?.text?.trim();
-    if (!text) throw new Error('Empty response dari Claude');
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('Empty response dari Groq');
     return text;
   }, [GEMINI_URL, GROQ_KEY, fetchWithRetry]);
 
@@ -93,7 +87,6 @@ Tugasmu: tuntun pengguna mengevaluasi harinya secara bertahap dalam urutan ini:
 
 Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum Memori" di atas. Jangan melompat topik. Respons maksimal 2-3 kalimat per giliran agar percakapan terasa seperti ngobrol nyata.`;
 
-    // Format pesan untuk Claude (role: user/assistant saja, tanpa system)
     const messages = allMsgs
       .filter(m => m.id !== 'sys-1')
       .map(m => ({
@@ -103,7 +96,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
 
     try {
       const text = await callGemini(systemPrompt, messages, 700, 0.8);
-
       setMessages(prev => [...prev, {
         id: `ai-${Date.now()}`,
         sender: 'ai',
@@ -153,10 +145,8 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       );
       const cleaned = rawText.replace(/```json\n?|```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
-
       if (!parsed.good_things && !parsed.ai_summary) throw new Error('Parsed JSON kosong');
       saveReflection(parsed);
-
     } catch (err) {
       console.error('[Daymirror] Summarize error:', err);
       const replies = chatMessages.filter(m => m.sender === 'user').map(m => m.text);
@@ -175,7 +165,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
 
   const saveReflection = async (data) => {
     const today = new Date().toISOString().split('T')[0];
-
     const entry = {
       user_id: authUser.id,
       date: today,
@@ -236,13 +225,11 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       );
       const cleaned = rawText.replace(/```json\n?|```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
-
       saveReflection({
         ...formData,
         ai_summary: parsed.summary || `Meskipun ada rintangan "${obstacles || 'hari ini'}", perjuanganmu sangat hebat! ⭐`,
         ai_advice: parsed.advice || `Biar jurus esok "${tomorrow_goal}" sukses, siapkan istirahat cukup malam ini!`,
       });
-
     } catch (err) {
       console.error('[Daymirror] Form submit error:', err);
       saveReflection({
@@ -258,7 +245,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
 
   return (
     <div className="space-y-6 pb-20 md:pb-0">
-      {/* Method selector */}
       <div className="bg-[#FFFDF9] rounded-2xl comic-border-thick p-4 comic-shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <h4 className="font-comic-title font-black text-sm text-[#2C3E35]">Pilih Wujud Buku Jurnalmu Malam Ini:</h4>
@@ -280,7 +266,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
         </div>
       </div>
 
-      {/* CHAT MODE */}
       {method === 'chat' && (
         <div className="bg-[#FFFDF9] rounded-[32px] comic-border-thick comic-shadow-md overflow-hidden flex flex-col" style={{ minHeight: '520px' }}>
           <div className="bg-[#7CA190] border-b-4 border-[#2C3E35] p-4 flex items-center justify-between">
@@ -355,7 +340,6 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
         </div>
       )}
 
-      {/* FORM MODE */}
       {method === 'form' && (
         <div className="bg-[#FFFDF9] rounded-[32px] comic-border-thick p-6 comic-shadow-md space-y-4">
           <div>
