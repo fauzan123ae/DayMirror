@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Sparkles, LogIn, UserPlus, Loader2 } from 'lucide-react';
 import { GOAL_OPTIONS } from '../data/constants';
 import { useApp } from '../context/AppContext';
@@ -7,7 +6,6 @@ import { supabase } from '../lib/supabase';
 
 export default function Onboarding() {
   const { triggerToast } = useApp();
-  const navigate = useNavigate();
 
   const [tab, setTab] = useState('login');
   const [username, setUsername] = useState('');
@@ -18,39 +16,34 @@ export default function Onboarding() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const identifier = email.trim() || username.trim();
-    if (!identifier) { triggerToast('Email harus diisi ya! 🐾', 'error'); return; }
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) { triggerToast('Email harus diisi ya! 🐾', 'error'); return; }
     if (!password) { triggerToast('Kata sandinya diisi dulu ya! 🔒', 'error'); return; }
 
     setIsLoading(true);
     try {
-      // Coba login dengan email langsung
-      const loginEmail = identifier.includes('@') ? identifier : null;
-
-      if (!loginEmail) {
-        // Jika input adalah username, cari email-nya dulu via profiles
-        // Karena Supabase auth butuh email, simpan email di profiles
-        triggerToast('Gunakan email untuk login ya! 📧', 'error');
-        setIsLoading(false);
-        return;
-      }
-
       const { error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
+        email: cleanEmail,
         password,
       });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
+        if (
+          error.message.includes('Invalid login credentials') ||
+          error.message.includes('invalid_credentials')
+        ) {
           triggerToast('Email atau kata sandi salah! 🗝️', 'error');
+        } else if (error.message.includes('Email not confirmed')) {
+          triggerToast('Email belum dikonfirmasi. Cek inbox kamu! 📧', 'error');
         } else {
           triggerToast(error.message, 'error');
         }
         return;
       }
 
+      // ✅ JANGAN navigate manual — AppShell akan redirect otomatis
+      // setelah onAuthStateChange mendeteksi session baru
       triggerToast('Selamat datang kembali! 🚀', 'success');
-      navigate('/dashboard');
     } catch {
       triggerToast('Gagal masuk. Coba lagi!', 'error');
     } finally {
@@ -71,7 +64,7 @@ export default function Onboarding() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
@@ -83,7 +76,7 @@ export default function Onboarding() {
       });
 
       if (error) {
-        if (error.message.includes('already registered')) {
+        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
           triggerToast('Email ini sudah terdaftar! Coba login. 📧', 'error');
         } else {
           triggerToast(error.message, 'error');
@@ -91,8 +84,15 @@ export default function Onboarding() {
         return;
       }
 
+      // Supabase kadang return user tapi identities kosong = email sudah terdaftar
+      if (data?.user && data.user.identities?.length === 0) {
+        triggerToast('Email ini sudah terdaftar! Coba login. 📧', 'error');
+        return;
+      }
+
+      // ✅ JANGAN navigate manual — AppShell akan redirect otomatis
+      // setelah onAuthStateChange mendeteksi session baru
       triggerToast(`Akun berhasil dibuat! Halo ${cleanUsername}! 🥑🚀`, 'success');
-      navigate('/dashboard');
     } catch {
       triggerToast('Gagal mendaftar. Coba lagi!', 'error');
     } finally {
