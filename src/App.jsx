@@ -28,7 +28,6 @@ function AppShell() {
     }
   }, [user, location.pathname, navigate]);
 
-  // Loading screen saat cek session Supabase
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -45,10 +44,11 @@ function AppShell() {
       <Toast />
       <Header />
 
-      <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 flex gap-8">
+      <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 flex gap-8">
         <Sidebar />
 
-        <div className="flex-1 min-w-0">
+        {/* pb-24 di mobile supaya konten tidak ketutup bottom nav */}
+        <div className="flex-1 min-w-0 pb-24 md:pb-0">
           <Routes>
             <Route path="/"          element={<Onboarding />} />
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -61,7 +61,10 @@ function AppShell() {
         </div>
       </div>
 
-      <Footer />
+      {/* Footer hanya di desktop */}
+      <div className="hidden md:block">
+        <Footer />
+      </div>
     </div>
   );
 }

@@ -5,11 +5,11 @@ import { useApp } from '../context/AppContext';
 import CompanionModal from './CompanionModal';
 
 const NAV_ITEMS = [
-  { path: '/dashboard',  icon: Flame,      label: 'Dashboard'        },
-  { path: '/reflect',    icon: BookOpen,   label: 'Cermin Harian'    },
-  { path: '/journal',    icon: Calendar,   label: 'Buku Jurnal'      },
-  { path: '/weekly',     icon: TrendingUp, label: 'Laporan Mingguan' },
-  { path: '/profile',    icon: User,       label: 'Profil'           },
+  { path: '/dashboard', icon: Flame,      label: 'Dashboard'        },
+  { path: '/reflect',   icon: BookOpen,   label: 'Cermin'           },
+  { path: '/journal',   icon: Calendar,   label: 'Jurnal'           },
+  { path: '/weekly',    icon: TrendingUp, label: 'Mingguan'         },
+  { path: '/profile',   icon: User,       label: 'Profil'           },
 ];
 
 export default function Sidebar() {
@@ -22,6 +22,7 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex w-56 shrink-0 flex-col gap-2">
         <nav className="bg-[#FFFDF9] rounded-[32px] comic-border-thick p-4 comic-shadow-md space-y-2 sticky top-28">
           {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
@@ -37,7 +38,9 @@ export default function Sidebar() {
                 }`}
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                {label}
+                {label === 'Cermin' ? 'Cermin Harian' :
+                 label === 'Jurnal' ? 'Buku Jurnal' :
+                 label === 'Mingguan' ? 'Laporan Mingguan' : label}
               </button>
             );
           })}
@@ -61,19 +64,21 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFFDF9] border-t-4 border-[#2C3E35] flex justify-around items-center py-2 px-2">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#FFFDF9] border-t-4 border-[#2C3E35] flex justify-around items-center h-16 px-1 safe-area-inset-bottom">
         {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
           const active = location.pathname === path;
           return (
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${
-                active ? 'bg-[#7CA190] text-white' : 'text-[#7CA190]'
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full rounded-xl text-[10px] font-black transition-all ${
+                active
+                  ? 'bg-[#7CA190] text-white'
+                  : 'text-[#7CA190] hover:bg-[#F8F5EE]'
               }`}
             >
               <Icon className="w-5 h-5" />
-              <span className="truncate max-w-[56px] text-center">{label}</span>
+              <span>{label}</span>
             </button>
           );
         })}
