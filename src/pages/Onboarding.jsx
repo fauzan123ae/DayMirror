@@ -41,8 +41,6 @@ export default function Onboarding() {
         return;
       }
 
-      // ✅ JANGAN navigate manual — AppShell akan redirect otomatis
-      // setelah onAuthStateChange mendeteksi session baru
       triggerToast('Selamat datang kembali! 🚀', 'success');
     } catch {
       triggerToast('Gagal masuk. Coba lagi!', 'error');
@@ -85,20 +83,43 @@ export default function Onboarding() {
         return;
       }
 
-      // Supabase kadang return user tapi identities kosong = email sudah terdaftar
+      // Email sudah terdaftar tapi identities kosong
       if (data?.user && data.user.identities?.length === 0) {
         triggerToast('Email ini sudah terdaftar! Coba login. 📧', 'error');
         return;
       }
 
-      // Jika Email Confirmation aktif di Supabase, session bernilai null
+      // ✅ Insert ke tabel profiles setelah signup berhasil
+      if (data?.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            name: cleanUsername,
+            goal: goal,
+            streak: 0,
+            joined_at: new Date().toISOString().split('T')[0],
+            ai_companion: { name: 'Mirror', avatar: '🥑' },
+            stickers: [
+              { id: 1, emoji: '🎉', x: 80, y: 15, rotate: -15, label: 'Super!' },
+              { id: 2, emoji: '✨', x: 20, y: 70, rotate: 10, label: 'Ajaib' },
+              { id: 3, emoji: '🌸', x: 92, y: 78, rotate: -5, label: 'Damai' },
+            ],
+          }, { onConflict: 'id' });
+
+        if (profileError) {
+          console.error('[Daymirror] Gagal insert profile:', profileError);
+        }
+      }
+
+      // Email confirmation aktif → session null
       if (data?.user && !data.session) {
         triggerToast('Akun berhasil dibuat! Cek email kamu untuk konfirmasi sebelum masuk. 📧✨', 'info');
         setTab('login');
         return;
       }
 
-      // ✅ Jika Email Confirmation di-disable, session langsung ada & redirect otomatis oleh AppShell
+      // Email confirmation nonaktif → langsung masuk
       triggerToast(`Akun berhasil dibuat! Halo ${cleanUsername}! 🥑🚀`, 'success');
     } catch {
       triggerToast('Gagal mendaftar. Coba lagi!', 'error');
@@ -226,4 +247,3 @@ export default function Onboarding() {
     </main>
   );
 }
-//
