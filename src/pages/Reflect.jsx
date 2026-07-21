@@ -33,7 +33,7 @@ export default function Reflect() {
     if (method === 'chat' && chatMessages.length === 0) {
       setMessages([{
         id: 'sys-1', sender: 'ai',
-        text: `Halo ${user?.name}! Selamat datang di ruang amanmu. 🌿 Aku "${aiCompanion.name}" ${aiCompanion.avatar}, teman setiamu malam ini.\n\nMari lepas penat sejenak, pejamkan mata 3 detik... lalu ceritakan ke aku, **satu hal kecil atau pencapaian manis apa yang paling bikin kamu tersenyum hari ini?** 😊`,
+        text: `Halo ${user?.name}! Selamat datang di ruang refleksimu 🌿 Aku ${aiCompanion.name}, teman ngobrolmu di sini.\n\nGimana harimu hari ini? Ceritain dong, ada hal yang bikin kamu senang atau bangga nggak?`,
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
       }]);
     }
@@ -58,14 +58,14 @@ export default function Reflect() {
     setInputText('');
     setChatLoading(true);
 
-    const systemPrompt = `Kamu adalah "${aiCompanion.name}" ${aiCompanion.avatar}, AI companion jurnal harian dalam Bahasa Indonesia. Karaktermu: hangat, empatik, lucu, penuh semangat, suka pakai emoji dan onomatope komik (*cling!*, *puf!*, *woosh!*). Fokus pengguna: ${GOAL_OPTIONS.find(o => o.id === user?.goal)?.label || 'Self Improvement'}. Nama pengguna: ${user?.name}.
+    const systemPrompt = `Kamu adalah "${aiCompanion.name}", teman jurnal harian dalam Bahasa Indonesia. Gaya bicaramu: hangat, empatik, santai seperti teman dekat. Sesekali pakai emoji secukupnya (maksimal 1-2 per pesan), tidak berlebihan. Jangan pakai onomatope seperti *puf!* atau *cling!* — bicara natural saja seperti manusia. Fokus pengguna: ${GOAL_OPTIONS.find(o => o.id === user?.goal)?.label || 'Self Improvement'}. Nama pengguna: ${user?.name}.
 
 Tugasmu: tuntun pengguna mengevaluasi harinya secara bertahap dalam urutan ini:
-1. Tanya hal baik / pencapaian hari ini
-2. Tanya hambatan / rintangan  
-3. Tanya rencana / target besok
+1. Tanya hal baik atau pencapaian hari ini
+2. Tanya hambatan atau kesulitan yang dihadapi
+3. Tanya rencana atau target untuk besok
 
-Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum Memori" di atas. Jangan melompat topik. Respons maksimal 3 kalimat per giliran agar percakapan terasa natural.`;
+Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum Memori" di atas. Jangan melompat topik. Respons maksimal 2-3 kalimat per giliran agar percakapan terasa seperti ngobrol nyata.`;
 
     // Format multi-turn OpenAI-compatible untuk Groq
     const messages = [
@@ -86,9 +86,9 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
           'Authorization': `Bearer ${GROQ_KEY}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.3-70b-versatile',
           messages,
-          max_tokens: 500,
+          max_tokens: 700,
           temperature: 0.8,
         }),
       });
@@ -109,7 +109,7 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
       setMessages(prev => [...prev, {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: `*puf!* Sebentar ya ${user?.name}, koneksiku sedikit terganggu 🌪️ Coba kirim ulang pesanmu, aku tetap di sini! ✨🧸`,
+        text: `Aduh, koneksiku terganggu sebentar ${user?.name} 😅 Coba kirim ulang pesanmu ya, aku masih di sini!`,
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       }]);
     } finally {
@@ -144,7 +144,7 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
           'Authorization': `Bearer ${GROQ_KEY}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.3-70b-versatile',
           messages: [
             {
               role: 'system',
@@ -244,7 +244,7 @@ Setelah ketiga topik terbahas, minta pengguna klik tombol "Kumpulkan & Rangkum M
           'Authorization': `Bearer ${GROQ_KEY}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.3-70b-versatile',
           messages: [
             {
               role: 'system',
