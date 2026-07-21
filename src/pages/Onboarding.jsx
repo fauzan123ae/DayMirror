@@ -68,6 +68,7 @@ export default function Onboarding() {
         email: cleanEmail,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             name: cleanUsername,
             goal: goal,
@@ -90,8 +91,14 @@ export default function Onboarding() {
         return;
       }
 
-      // ✅ JANGAN navigate manual — AppShell akan redirect otomatis
-      // setelah onAuthStateChange mendeteksi session baru
+      // Jika Email Confirmation aktif di Supabase, session bernilai null
+      if (data?.user && !data.session) {
+        triggerToast('Akun berhasil dibuat! Cek email kamu untuk konfirmasi sebelum masuk. 📧✨', 'info');
+        setTab('login');
+        return;
+      }
+
+      // ✅ Jika Email Confirmation di-disable, session langsung ada & redirect otomatis oleh AppShell
       triggerToast(`Akun berhasil dibuat! Halo ${cleanUsername}! 🥑🚀`, 'success');
     } catch {
       triggerToast('Gagal mendaftar. Coba lagi!', 'error');
@@ -219,3 +226,4 @@ export default function Onboarding() {
     </main>
   );
 }
+//
